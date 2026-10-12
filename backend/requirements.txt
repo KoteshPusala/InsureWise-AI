@@ -1,9 +1,10 @@
 fastapi
 uvicorn[standard]
 python-dotenv
-pymupdf
+pymupdf>=1.24.0
 pytesseract
 Pillow
+fastembed>=0.3.0
 sentence-transformers
 faiss-cpu
 reportlab
@@ -14,3 +15,4 @@ anthropic
 openai
 python-multipart
 email-validator
+psutil

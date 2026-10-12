@@ -1,6 +1,6 @@
 import pytest
 import io
-import fitz
+import pymupdf
 from fastapi.testclient import TestClient
 import reportlab.lib.pagesizes as ps
 from reportlab.pdfgen import canvas

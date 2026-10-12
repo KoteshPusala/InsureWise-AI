@@ -1,4 +1,5 @@
 import os
+from typing import Optional
 from pathlib import Path
 from dotenv import load_dotenv
 
@@ -55,9 +56,10 @@ class Settings:
 
     @property
     def ALLOWED_ORIGINS(self) -> list:
-        return [
-            o.strip() for o in os.getenv("ALLOWED_ORIGINS", "http://localhost:5173").split(",")
-        ]
+        raw = os.getenv("ALLOWED_ORIGINS", "*")
+        if not raw or raw.strip() == "*":
+            return ["*"]
+        return [o.strip() for o in raw.split(",") if o.strip()]
 
     # Chunking
     CHUNK_TARGET_MIN: int = 600
@@ -76,14 +78,61 @@ class Settings:
     PROCESSING_TIMEOUT_SECONDS: int = 300
     STAGE_TIMEOUT_SECONDS: int = 60
 
-    # Paths (absolute to backend dir)
+    # Paths (configurable for Render Persistent Disks & test fixtures)
     BACKEND_DIR: Path = Path(__file__).resolve().parent
-    STORAGE_DIR: Path = BACKEND_DIR / "storage"
-    UPLOADS_DIR: Path = STORAGE_DIR / "uploads"
-    INDEXES_DIR: Path = STORAGE_DIR / "indexes"
-    REPORTS_DIR: Path = STORAGE_DIR / "reports"
-    DB_PATH: Path = STORAGE_DIR / "insurewise.db"
-    CHECKLIST_PATH: Path = BACKEND_DIR / "config" / "claim_checklists.json"
+
+    _storage_dir: Optional[Path] = None
+    _uploads_dir: Optional[Path] = None
+    _indexes_dir: Optional[Path] = None
+    _reports_dir: Optional[Path] = None
+    _db_path: Optional[Path] = None
+
+    @property
+    def STORAGE_DIR(self) -> Path:
+        if self._storage_dir:
+            return self._storage_dir
+        custom = os.getenv("STORAGE_DIR")
+        return Path(custom) if custom else self.BACKEND_DIR / "storage"
+
+    @STORAGE_DIR.setter
+    def STORAGE_DIR(self, val: Path):
+        self._storage_dir = Path(val)
+
+    @property
+    def UPLOADS_DIR(self) -> Path:
+        return self._uploads_dir if self._uploads_dir else self.STORAGE_DIR / "uploads"
+
+    @UPLOADS_DIR.setter
+    def UPLOADS_DIR(self, val: Path):
+        self._uploads_dir = Path(val)
+
+    @property
+    def INDEXES_DIR(self) -> Path:
+        return self._indexes_dir if self._indexes_dir else self.STORAGE_DIR / "indexes"
+
+    @INDEXES_DIR.setter
+    def INDEXES_DIR(self, val: Path):
+        self._indexes_dir = Path(val)
+
+    @property
+    def REPORTS_DIR(self) -> Path:
+        return self._reports_dir if self._reports_dir else self.STORAGE_DIR / "reports"
+
+    @REPORTS_DIR.setter
+    def REPORTS_DIR(self, val: Path):
+        self._reports_dir = Path(val)
+
+    @property
+    def DB_PATH(self) -> Path:
+        return self._db_path if self._db_path else self.STORAGE_DIR / "insurewise.db"
+
+    @DB_PATH.setter
+    def DB_PATH(self, val: Path):
+        self._db_path = Path(val)
+
+    @property
+    def CHECKLIST_PATH(self) -> Path:
+        return self.BACKEND_DIR / "config" / "claim_checklists.json"
 
     def reload_env(self):
         load_dotenv(_env_path, override=True)

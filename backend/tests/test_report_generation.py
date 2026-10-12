@@ -1,7 +1,7 @@
 import pytest
 import os
 import io
-import fitz  # PyMuPDF
+import pymupdf  # PyMuPDF
 from fastapi.testclient import TestClient
 
 from main import app
@@ -34,7 +34,7 @@ def test_report_generation_with_zero_documents():
     assert os.path.getsize(pdf_path) > 1000
 
     # Verify readable with PyMuPDF
-    doc = fitz.open(pdf_path)
+    doc = pymupdf.open(pdf_path)
     text = "\n".join(page.get_text() for page in doc)
     assert "Zero Docs Policy" in text
     assert "supermarket" in text
@@ -79,7 +79,7 @@ def test_report_generation_with_multiple_documents_regression():
     pdf_path = report.generate_report_pdf(claim_id)
     assert os.path.exists(pdf_path)
 
-    doc = fitz.open(pdf_path)
+    doc = pymupdf.open(pdf_path)
     text = "\n".join(page.get_text() for page in doc)
     assert "Workshop_Repair_Estimate.pdf" in text
     assert "Police_FIR_Report.pdf" in text
@@ -129,7 +129,7 @@ def test_report_download_api_endpoint_with_documents():
     assert dl_res.status_code == 200
     assert dl_res.headers.get("content-type") == "application/pdf"
 
-    doc = fitz.open(stream=dl_res.content, filetype="pdf")
+    doc = pymupdf.open(stream=dl_res.content, filetype="pdf")
     pdf_text = "\n".join(page.get_text() for page in doc)
     assert "API Report Policy" in pdf_text
     assert "Official_Estimate.pdf" in pdf_text

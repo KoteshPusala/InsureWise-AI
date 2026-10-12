@@ -2,7 +2,7 @@ import pytest
 import io
 import os
 import json
-import fitz  # PyMuPDF
+import pymupdf  # PyMuPDF
 from pathlib import Path
 from fastapi.testclient import TestClient
 
@@ -127,10 +127,10 @@ def test_different_policies_produce_different_checklists_and_reports():
     assert pdf_2.status_code == 200
 
     # Verify report PDFs are distinct and reflect their own policy names
-    doc_1 = fitz.open(stream=pdf_1.content, filetype="pdf")
+    doc_1 = pymupdf.open(stream=pdf_1.content, filetype="pdf")
     text_1 = "\n".join(page.get_text() for page in doc_1)
 
-    doc_2 = fitz.open(stream=pdf_2.content, filetype="pdf")
+    doc_2 = pymupdf.open(stream=pdf_2.content, filetype="pdf")
     text_2 = "\n".join(page.get_text() for page in doc_2)
 
     assert "Motor Comprehensive Secure 2024" in text_1
@@ -345,7 +345,7 @@ def test_report_pdf_contains_claim_policy_name_and_incident_description():
     pdf_res = client.get(f"/api/claims/{claim['id']}/report/download?format=pdf")
     assert pdf_res.status_code == 200
 
-    doc = fitz.open(stream=pdf_res.content, filetype="pdf")
+    doc = pymupdf.open(stream=pdf_res.content, filetype="pdf")
     pdf_text = "\n".join(page.get_text() for page in doc)
 
     assert "Royal Sundaram Elite Platinum" in pdf_text
