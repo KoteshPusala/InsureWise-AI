@@ -1,0 +1,156 @@
+
+# ==========================================
+# 1. Environment variables and secrets
+# ==========================================
+.env
+.env.*
+!.env.example
+!.env.*.example
+!.env.sample
+!.env.*.sample
+
+# Private keys and certificates
+*.pem
+*.key
+*.p12
+*.pfx
+*.crt
+*.cer
+
+# ==========================================
+# 2. Node.js / React / Vite frontend
+# ==========================================
+**/node_modules/
+node_modules/
+.npm/
+.pnpm-store/
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Build outputs
+**/dist/
+**/build/
+**/out/
+**/.next/
+**/.nuxt/
+**/.output/
+**/coverage/
+
+# Frontend tooling caches
+**/.vite/
+**/.cache/
+**/.parcel-cache/
+**/.turbo/
+**/.eslintcache
+
+# Deployment tool configuration
+.vercel/
+.netlify/
+
+# ==========================================
+# 3. Python backend
+# ==========================================
+__pycache__/
+**/__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Python packaging
+build/
+develop-eggs/
+dist/
+eggs/
+wheels/
+*.egg
+*.egg-info/
+
+# Python caches and test artifacts
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.tox/
+.nox/
+.coverage
+.coverage.*
+htmlcov/
+.hypothesis/
+
+# ==========================================
+# 4. Generated AI / vector database data
+# ==========================================
+backend/storage/indexes/
+backend/storage/reports/
+
+# Local vector database and embedding artifacts
+chroma_db/
+vector_store/
+faiss_index/
+*.faiss.tmp
+
+# ==========================================
+# 5. User uploads and private documents
+# ==========================================
+backend/uploads/
+backend/user_uploads/
+backend/private_uploads/
+backend/storage/uploads/
+uploads/
+user_uploads/
+private_uploads/
+
+# ==========================================
+# 6. Local databases and backups
+# ==========================================
+*.sqlite
+*.sqlite3
+*.db
+*.db-journal
+*.dump
+*.bak
+*.backup
+
+# ==========================================
+# 7. Logs and temporary files
+# ==========================================
+*.log
+logs/
+tmp/
+temp/
+*.tmp
+*.temp
+
+# ==========================================
+# 8. Operating system files
+# ==========================================
+.DS_Store
+.DS_Store?
+Thumbs.db
+ehthumbs.db
+desktop.ini
+$RECYCLE.BIN/
+
+# ==========================================
+# 9. Editors and IDEs
+# ==========================================
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# ==========================================
+# 10. Local test and generated artifacts
+# ==========================================
+test-results/
+playwright-report/
+.nyc_output/
+*.orig
+*.rej

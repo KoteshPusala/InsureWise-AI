@@ -1,0 +1,118 @@
+import os
+from pathlib import Path
+from dotenv import load_dotenv
+
+_env_path = Path(__file__).parent / ".env"
+load_dotenv(_env_path, override=True)
+
+class Settings:
+    # LLM Configuration
+    @property
+    def LLM_PROVIDER(self) -> str:
+        return os.getenv("LLM_PROVIDER", "groq")
+
+    @property
+    def GROQ_API_KEY(self) -> str:
+        return os.getenv("GROQ_API_KEY", "")
+
+    @property
+    def GROQ_MODEL(self) -> str:
+        return os.getenv("GROQ_MODEL", "qwen/qwen3.8-27b")
+
+    @property
+    def ANTHROPIC_API_KEY(self) -> str:
+        return os.getenv("ANTHROPIC_API_KEY", "")
+
+    @property
+    def ANTHROPIC_MODEL(self) -> str:
+        return os.getenv("ANTHROPIC_MODEL", "claude-sonnet-4-20250514")
+
+    @property
+    def OPENAI_API_KEY(self) -> str:
+        return os.getenv("OPENAI_API_KEY", "")
+
+    @property
+    def OPENAI_MODEL(self) -> str:
+        return os.getenv("OPENAI_MODEL", "gpt-4o")
+
+    # Embedding Configuration
+    @property
+    def EMBEDDING_PROVIDER(self) -> str:
+        return os.getenv("EMBEDDING_PROVIDER", "local")
+
+    @property
+    def OPENAI_EMBEDDING_MODEL(self) -> str:
+        return os.getenv("OPENAI_EMBEDDING_MODEL", "text-embedding-3-small")
+
+    # App Configuration
+    @property
+    def DEMO_MODE(self) -> bool:
+        return os.getenv("DEMO_MODE", "false").lower() == "true"
+
+    @property
+    def MAX_UPLOAD_MB(self) -> int:
+        return int(os.getenv("MAX_UPLOAD_MB", "15"))
+
+    @property
+    def ALLOWED_ORIGINS(self) -> list:
+        return [
+            o.strip() for o in os.getenv("ALLOWED_ORIGINS", "http://localhost:5173").split(",")
+        ]
+
+    # Chunking
+    CHUNK_TARGET_MIN: int = 600
+    CHUNK_TARGET_MAX: int = 900
+    CHUNK_OVERLAP: int = 100
+
+    # Retrieval
+    TOP_K: int = 6
+    RELEVANCE_THRESHOLD: float = 0.35
+
+    # Limits
+    MAX_PAGES: int = 200
+    MAX_HISTORY_TURNS: int = 6
+    OCR_MIN_CHARS: int = 30
+    BATCH_SIZE: int = 32
+    PROCESSING_TIMEOUT_SECONDS: int = 300
+    STAGE_TIMEOUT_SECONDS: int = 60
+
+    # Paths (absolute to backend dir)
+    BACKEND_DIR: Path = Path(__file__).resolve().parent
+    STORAGE_DIR: Path = BACKEND_DIR / "storage"
+    UPLOADS_DIR: Path = STORAGE_DIR / "uploads"
+    INDEXES_DIR: Path = STORAGE_DIR / "indexes"
+    REPORTS_DIR: Path = STORAGE_DIR / "reports"
+    DB_PATH: Path = STORAGE_DIR / "insurewise.db"
+    CHECKLIST_PATH: Path = BACKEND_DIR / "config" / "claim_checklists.json"
+
+    def reload_env(self):
+        load_dotenv(_env_path, override=True)
+
+    @property
+    def active_api_key(self) -> str:
+        provider = self.LLM_PROVIDER.lower()
+        if provider == "groq":
+            return self.GROQ_API_KEY
+        elif provider == "openai":
+            return self.OPENAI_API_KEY
+        return self.ANTHROPIC_API_KEY
+
+    @property
+    def active_model(self) -> str:
+        provider = self.LLM_PROVIDER.lower()
+        if provider == "groq":
+            return self.GROQ_MODEL
+        elif provider == "openai":
+            return self.OPENAI_MODEL
+        return self.ANTHROPIC_MODEL
+
+    @property
+    def api_key_configured(self) -> bool:
+        return bool(self.active_api_key.strip())
+
+    @property
+    def is_demo(self) -> bool:
+        return self.DEMO_MODE or not self.api_key_configured
+
+
+settings = Settings()

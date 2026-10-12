@@ -1,0 +1,14 @@
+fastapi
+uvicorn[standard]
+python-dotenv
+pymupdf
+pytesseract
+Pillow
+sentence-transformers
+faiss-cpu
+reportlab
+pydantic
+httpx
+groq
+anthropic
+openai
