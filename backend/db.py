@@ -172,18 +172,92 @@ def init_db():
         except sqlite3.OperationalError:
             pass
 
+    # Users Table
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS users (
+            id TEXT PRIMARY KEY,
+            email TEXT UNIQUE,
+            name TEXT,
+            password_hash TEXT,
+            created_at TEXT
+        )
+    """)
+
+    # User scoping migrations
+    try:
+        cursor.execute("ALTER TABLE policies ADD COLUMN user_id TEXT DEFAULT ''")
+    except sqlite3.OperationalError:
+        pass
+    try:
+        cursor.execute("ALTER TABLE claims ADD COLUMN user_id TEXT DEFAULT ''")
+    except sqlite3.OperationalError:
+        pass
+
     conn.commit()
     conn.close()
 
-def create_policy(filename: str, display_name: str, page_count: int = 0) -> str:
+
+import hashlib
+import secrets
+
+def hash_password(password: str) -> str:
+    salt = secrets.token_hex(16)
+    key = hashlib.pbkdf2_hmac('sha256', password.encode('utf-8'), bytes.fromhex(salt), 100000)
+    return f"{salt}:{key.hex()}"
+
+def verify_password(stored_password: str, provided_password: str) -> bool:
+    try:
+        if not stored_password or ":" not in stored_password:
+            return False
+        salt, key_hex = stored_password.split(":")
+        new_key = hashlib.pbkdf2_hmac('sha256', provided_password.encode('utf-8'), bytes.fromhex(salt), 100000)
+        return secrets.compare_digest(new_key.hex(), key_hex)
+    except Exception:
+        return False
+
+def create_user(name: str, email: str, password: str) -> Dict[str, Any]:
+    conn = get_connection()
+    c = conn.cursor()
+    user_id = str(uuid.uuid4())
+    created_at = datetime.now(timezone.utc).isoformat()
+    pw_hash = hash_password(password)
+    c.execute("""
+        INSERT INTO users (id, email, name, password_hash, created_at)
+        VALUES (?, ?, ?, ?, ?)
+    """, (user_id, email.lower().strip(), name.strip(), pw_hash, created_at))
+    conn.commit()
+    conn.close()
+    return {"id": user_id, "email": email.lower().strip(), "name": name.strip(), "created_at": created_at}
+
+def get_user_by_email(email: str) -> Optional[Dict[str, Any]]:
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute("SELECT * FROM users WHERE email = ?", (email.lower().strip(),))
+    row = c.fetchone()
+    conn.close()
+    if row:
+        return dict(row)
+    return None
+
+def get_user_by_id(user_id: str) -> Optional[Dict[str, Any]]:
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute("SELECT id, email, name, created_at FROM users WHERE id = ?", (user_id,))
+    row = c.fetchone()
+    conn.close()
+    if row:
+        return dict(row)
+    return None
+
+def create_policy(filename: str, display_name: str, page_count: int = 0, user_id: str = "") -> str:
     conn = get_connection()
     c = conn.cursor()
     policy_id = str(uuid.uuid4())
     uploaded_at = datetime.now(timezone.utc).isoformat()
     c.execute("""
-        INSERT INTO policies (id, filename, display_name, uploaded_at, page_count, chunk_count, ocr_pages, status, progress_stage, error_message, policy_type, summary)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    """, (policy_id, filename, display_name, uploaded_at, page_count, 0, "[]", "processing", "uploading", "", "", ""))
+        INSERT INTO policies (id, filename, display_name, uploaded_at, page_count, chunk_count, ocr_pages, status, progress_stage, error_message, policy_type, summary, user_id)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    """, (policy_id, filename, display_name, uploaded_at, page_count, 0, "[]", "processing", "uploading", "", "", "", user_id))
     conn.commit()
     conn.close()
     return policy_id
@@ -198,10 +272,14 @@ def get_policy(policy_id: str) -> Optional[Dict[str, Any]]:
         return dict(row)
     return None
 
-def list_policies() -> List[Dict[str, Any]]:
+def list_policies(user_id: Optional[str] = None) -> List[Dict[str, Any]]:
     conn = get_connection()
     c = conn.cursor()
-    c.execute("SELECT * FROM policies ORDER BY uploaded_at DESC")
+    if user_id:
+        # Show policies uploaded by this user + global template policies
+        c.execute("SELECT * FROM policies WHERE user_id = ? OR user_id = '' OR user_id IS NULL ORDER BY uploaded_at DESC", (user_id,))
+    else:
+        c.execute("SELECT * FROM policies ORDER BY uploaded_at DESC")
     rows = c.fetchall()
     conn.close()
     return [dict(row) for row in rows]
@@ -225,7 +303,8 @@ def create_claim(
     incident_date: str,
     claim_title: str = "",
     claim_category: str = "",
-    incident_details: Optional[Dict[str, Any]] = None
+    incident_details: Optional[Dict[str, Any]] = None,
+    user_id: str = ""
 ) -> str:
     conn = get_connection()
     c = conn.cursor()
@@ -237,12 +316,12 @@ def create_claim(
     c.execute("""
         INSERT INTO claims (
             id, policy_id, incident_description, incident_type, incident_date, created_at, status, checklist_items, documents,
-            claim_title, claim_category, incident_details, readiness_score, report_version, report_stale, updated_at
+            claim_title, claim_category, incident_details, readiness_score, report_version, report_stale, updated_at, user_id
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     """, (
         claim_id, policy_id, incident_description, incident_type, incident_date, created_at, "draft", "[]", "[]",
-        title, category, inc_details_json, 0, 1, 0, created_at
+        title, category, inc_details_json, 0, 1, 0, created_at, user_id
     ))
     conn.commit()
     conn.close()

@@ -5,8 +5,8 @@ import uuid
 import shutil
 import logging
 from pathlib import Path
-from typing import Dict, Any, List
-from fastapi import APIRouter, UploadFile, File, HTTPException, BackgroundTasks
+from typing import Dict, Any, List, Optional
+from fastapi import APIRouter, UploadFile, File, HTTPException, BackgroundTasks, Header
 from fastapi.responses import FileResponse
 
 from config import settings
@@ -99,7 +99,7 @@ def process_policy_ingestion(policy_id: str, file_path: str):
             pass
 
 @router.post("", response_model=dict)
-def upload_policy(background_tasks: BackgroundTasks, file: UploadFile = File(...)):
+def upload_policy(background_tasks: BackgroundTasks, file: UploadFile = File(...), x_user_id: Optional[str] = Header(None)):
     if not file.filename.lower().endswith(".pdf"):
         raise HTTPException(status_code=400, detail="Only PDF files are allowed")
     
@@ -114,7 +114,8 @@ def upload_policy(background_tasks: BackgroundTasks, file: UploadFile = File(...
     if len(contents) > max_bytes:
         raise HTTPException(status_code=400, detail=f"File size exceeds limit of {settings.MAX_UPLOAD_MB} MB.")
 
-    policy_id = create_policy(file.filename, file.filename, 0)
+    uid = (x_user_id or "").replace("tok_", "")
+    policy_id = create_policy(file.filename, file.filename, 0, user_id=uid)
     
     file_path = str(settings.UPLOADS_DIR / f"{policy_id}.pdf")
     with open(file_path, "wb") as f:
@@ -127,7 +128,7 @@ def upload_policy(background_tasks: BackgroundTasks, file: UploadFile = File(...
     return parse_policy_row(policy)
 
 @router.post("/sample", response_model=dict)
-def load_sample_policy(background_tasks: BackgroundTasks):
+def load_sample_policy(background_tasks: BackgroundTasks, x_user_id: Optional[str] = Header(None)):
     sample_path = settings.BACKEND_DIR / "sample_data" / "sample_vehicle_policy.pdf"
     if not sample_path.exists():
         # Fallback to relative path if needed
@@ -136,7 +137,8 @@ def load_sample_policy(background_tasks: BackgroundTasks):
             raise HTTPException(status_code=404, detail="Sample policy PDF not found on server.")
         
     filename = "sample_vehicle_policy.pdf"
-    policy_id = create_policy(filename, "Sample Vehicle Comprehensive Policy 2024", 0)
+    uid = (x_user_id or "").replace("tok_", "")
+    policy_id = create_policy(filename, "Sample Vehicle Comprehensive Policy 2024", 0, user_id=uid)
     
     dest_path = str(settings.UPLOADS_DIR / f"{policy_id}.pdf")
     shutil.copyfile(str(sample_path), dest_path)
@@ -148,8 +150,9 @@ def load_sample_policy(background_tasks: BackgroundTasks):
     return parse_policy_row(policy)
 
 @router.get("", response_model=dict)
-def get_policies():
-    policies = list_policies()
+def get_policies(x_user_id: Optional[str] = Header(None)):
+    uid = (x_user_id or "").replace("tok_", "")
+    policies = list_policies(user_id=uid if uid else None)
     return {"policies": [parse_policy_row(p) for p in policies]}
 
 @router.get("/{id}", response_model=dict)

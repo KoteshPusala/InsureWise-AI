@@ -3,7 +3,7 @@ import json
 import uuid
 from datetime import datetime, timezone
 from typing import Dict, Any, List, Optional
-from fastapi import APIRouter, HTTPException, UploadFile, File, Form
+from fastapi import APIRouter, HTTPException, UploadFile, File, Form, Header
 from fastapi.responses import FileResponse
 
 from config import settings
@@ -56,7 +56,7 @@ def parse_doc_row(row: dict) -> dict:
 
 
 @router.post("", response_model=dict)
-def create_new_claim(claim: ClaimCreate):
+def create_new_claim(claim: ClaimCreate, x_user_id: Optional[str] = Header(None)):
     # 1. Validate policy
     policy = db.get_policy(claim.policy_id)
     if not policy:
@@ -81,6 +81,7 @@ def create_new_claim(claim: ClaimCreate):
         except ValueError:
             raise HTTPException(status_code=400, detail="Invalid incident date format. Please use YYYY-MM-DD")
 
+    uid = (x_user_id or "").replace("tok_", "")
     claim_id = db.create_claim(
         policy_id=claim.policy_id,
         incident_description=desc_clean,
@@ -88,7 +89,8 @@ def create_new_claim(claim: ClaimCreate):
         incident_date=claim.incident_date,
         claim_title=claim.claim_title or f"{claim.incident_type.replace('_', ' ').title()} Claim",
         claim_category=claim.claim_category or claim.incident_type,
-        incident_details=claim.incident_details or {}
+        incident_details=claim.incident_details or {},
+        user_id=uid
     )
 
     # Pre-generate personalized checklist items while keeping claim status as draft
@@ -104,13 +106,21 @@ def create_new_claim(claim: ClaimCreate):
 
 
 @router.get("", response_model=dict)
-def list_all_claims(policy_id: Optional[str] = None):
+def list_all_claims(policy_id: Optional[str] = None, x_user_id: Optional[str] = Header(None)):
     conn = db.get_connection()
     c = conn.cursor()
-    if policy_id:
-        c.execute("SELECT * FROM claims WHERE policy_id = ? ORDER BY created_at DESC", (policy_id,))
+    uid = (x_user_id or "").replace("tok_", "")
+    
+    if uid:
+        if policy_id:
+            c.execute("SELECT * FROM claims WHERE policy_id = ? AND (user_id = ? OR user_id = '' OR user_id IS NULL) ORDER BY created_at DESC", (policy_id, uid))
+        else:
+            c.execute("SELECT * FROM claims WHERE (user_id = ? OR user_id = '' OR user_id IS NULL) ORDER BY created_at DESC", (uid,))
     else:
-        c.execute("SELECT * FROM claims ORDER BY created_at DESC")
+        if policy_id:
+            c.execute("SELECT * FROM claims WHERE policy_id = ? ORDER BY created_at DESC", (policy_id,))
+        else:
+            c.execute("SELECT * FROM claims ORDER BY created_at DESC")
     rows = c.fetchall()
     conn.close()
 

@@ -36,10 +36,21 @@ async function request(path, options = {}) {
   const url = `${BASE_URL}${path}`;
   const { timeoutMs, ...fetchOptions } = options;
   const config = {
-    headers: {},
+    headers: { ...fetchOptions.headers },
     ...fetchOptions,
   };
   
+  if (typeof window !== 'undefined') {
+    const userId = localStorage.getItem('insurewise_user_id');
+    if (userId) {
+      config.headers['X-User-Id'] = userId;
+    }
+    const token = localStorage.getItem('insurewise_token');
+    if (token) {
+      config.headers['Authorization'] = `Bearer ${token}`;
+    }
+  }
+
   if (config.body && !(config.body instanceof FormData)) {
     config.headers['Content-Type'] = 'application/json';
     config.body = JSON.stringify(config.body);
@@ -87,6 +98,11 @@ async function request(path, options = {}) {
 }
 
 export const api = {
+  // Auth
+  signup: (userData, options = {}) => request('/auth/signup', { method: 'POST', body: userData, ...options }),
+  login: (credentials, options = {}) => request('/auth/login', { method: 'POST', body: credentials, ...options }),
+  getMe: (options = {}) => request('/auth/me', options),
+
   // Health
   getHealth: (options = {}) => request('/health', options),
   

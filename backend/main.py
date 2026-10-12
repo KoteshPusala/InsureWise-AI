@@ -88,8 +88,10 @@ from routers.health import router as health_router
 from routers.policies import router as policies_router
 from routers.chat import router as chat_router
 from routers.claims import router as claims_router
+from routers.auth import router as auth_router
 
 app.include_router(health_router, prefix="/api")
 app.include_router(policies_router, prefix="/api")
 app.include_router(chat_router, prefix="/api")
 app.include_router(claims_router, prefix="/api")
+app.include_router(auth_router, prefix="/api")
