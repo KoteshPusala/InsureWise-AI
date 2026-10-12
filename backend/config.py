@@ -56,10 +56,21 @@ class Settings:
 
     @property
     def ALLOWED_ORIGINS(self) -> list:
-        raw = os.getenv("ALLOWED_ORIGINS", "*")
+        raw = os.getenv("ALLOWED_ORIGINS", "")
+        default_origins = [
+            "https://insure-wise-ai.vercel.app",
+            "http://localhost:5173",
+            "http://localhost:3000",
+            "http://127.0.0.1:5173",
+            "http://localhost:8000",
+        ]
         if not raw or raw.strip() == "*":
-            return ["*"]
-        return [o.strip() for o in raw.split(",") if o.strip()]
+            return default_origins
+        configured = [o.strip() for o in raw.split(",") if o.strip()]
+        for origin in default_origins:
+            if origin not in configured:
+                configured.append(origin)
+        return configured
 
     # Chunking
     CHUNK_TARGET_MIN: int = 600

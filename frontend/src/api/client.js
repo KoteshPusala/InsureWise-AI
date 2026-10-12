@@ -1,4 +1,11 @@
-const BASE_URL = '/api';
+// Resolve the API base URL:
+// In production, VITE_API_BASE_URL is 'https://insurewise-ai.onrender.com'
+// We normalize it and ensure it points to the /api namespace.
+// In development without VITE_API_BASE_URL, it defaults to '/api' for Vite's dev proxy.
+const rawBaseUrl = (import.meta.env.VITE_API_BASE_URL || '').trim().replace(/\/+$/, '');
+const BASE_URL = rawBaseUrl
+  ? (rawBaseUrl.endsWith('/api') ? rawBaseUrl : `${rawBaseUrl}/api`)
+  : '/api';
 
 class ApiError extends Error {
   constructor(status, code, message, isAbort = false) {
@@ -26,7 +33,25 @@ function extractErrorMessage(errorData, rawText, status) {
       return errorData.message;
     }
   }
-  if (rawText && rawText.length < 200 && !rawText.trim().startsWith('<')) {
+
+  // Handle specific HTTP statuses with clean, user-friendly messages
+  if (status === 404) {
+    return 'The requested service endpoint was not found (404). Please ensure the backend is running.';
+  }
+  if (status === 401) {
+    return 'Invalid email or password. Please check your credentials.';
+  }
+  if (status === 403) {
+    return 'You are not authorized to perform this action.';
+  }
+  if (status === 502 || status === 503 || status === 504) {
+    return 'The backend service is currently starting up or temporarily unavailable. Please retry in a few moments.';
+  }
+  if (status >= 500) {
+    return 'An unexpected server error occurred. Please try again shortly.';
+  }
+
+  if (rawText && rawText.length < 200 && !rawText.trim().startsWith('<') && !rawText.includes('bom1::')) {
     return rawText.trim();
   }
   return `Request failed with status ${status}`;
@@ -93,7 +118,11 @@ async function request(path, options = {}) {
     if (error.name === 'AbortError' || error.message?.includes('aborted')) {
       throw new ApiError(0, 'ABORTED', 'Request was cancelled', true);
     }
-    throw new ApiError(0, 'NETWORK_ERROR', 'Unable to connect to the server. Please check if the backend is running.');
+    throw new ApiError(
+      0,
+      'NETWORK_ERROR',
+      'Unable to connect to the backend server. The service may be waking up from sleep. Please wait a moment and try again.'
+    );
   }
 }
 
@@ -211,5 +240,5 @@ export const api = {
     request(`/claims/${claimId}/checklist/generate`, { method: 'POST', ...options }),
 };
 
-export { ApiError };
+export { ApiError, BASE_URL };
 export default api;

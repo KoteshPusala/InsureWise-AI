@@ -16,3 +16,4 @@ openai
 python-multipart
 email-validator
 psutil
+pyjwt>=2.8.0

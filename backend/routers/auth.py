@@ -1,9 +1,45 @@
+import os
+import jwt
+from datetime import datetime, timezone, timedelta
 from fastapi import APIRouter, HTTPException, Header, Depends
 from pydantic import BaseModel, EmailStr
 from typing import Optional, Dict, Any
 import db
 
 router = APIRouter(prefix="/auth", tags=["auth"])
+
+JWT_SECRET = os.getenv("JWT_SECRET", "insurewise-ai-secret-key-change-in-production-2026")
+JWT_ALGORITHM = "HS256"
+JWT_EXPIRATION_DAYS = 7
+
+
+def create_jwt_token(user_id: str, email: str) -> str:
+    now = datetime.now(timezone.utc)
+    payload = {
+        "sub": user_id,
+        "email": email,
+        "iat": int(now.timestamp()),
+        "exp": int((now + timedelta(days=JWT_EXPIRATION_DAYS)).timestamp()),
+    }
+    return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
+
+
+def extract_user_id_from_token(token_str: str) -> Optional[str]:
+    if not token_str:
+        return None
+    token = token_str.strip()
+    if token.startswith("Bearer "):
+        token = token[7:].strip()
+    if token.startswith("tok_"):
+        return token.replace("tok_", "")
+    try:
+        payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
+        return payload.get("sub")
+    except Exception:
+        # Fallback if raw uuid
+        if len(token) == 36 and "-" in token:
+            return token
+        return None
 
 
 class SignupRequest(BaseModel):
@@ -30,8 +66,7 @@ def signup(req: SignupRequest):
         raise HTTPException(status_code=400, detail="An account with this email already exists. Please log in.")
 
     user = db.create_user(name=name, email=req.email, password=req.password)
-    # Simple frictionless token for now (no email verification barrier required)
-    token = f"tok_{user['id']}"
+    token = create_jwt_token(user["id"], user["email"])
     return {
         "user": user,
         "token": token,
@@ -48,7 +83,7 @@ def login(req: LoginRequest):
     if not db.verify_password(user.get("password_hash", ""), req.password):
         raise HTTPException(status_code=401, detail="Invalid email or password")
 
-    token = f"tok_{user['id']}"
+    token = create_jwt_token(user["id"], user["email"])
     user_data = {
         "id": user["id"],
         "name": user["name"],
@@ -63,12 +98,20 @@ def login(req: LoginRequest):
 
 
 @router.get("/me")
-def get_current_user(x_user_id: Optional[str] = Header(None)):
-    if not x_user_id:
-        raise HTTPException(status_code=401, detail="Not authenticated")
-    # Clean token prefix if sent
-    uid = x_user_id.replace("tok_", "")
+def get_current_user(
+    authorization: Optional[str] = Header(None),
+    x_user_id: Optional[str] = Header(None)
+):
+    uid = None
+    if authorization:
+        uid = extract_user_id_from_token(authorization)
+    if not uid and x_user_id:
+        uid = extract_user_id_from_token(x_user_id)
+
+    if not uid:
+        raise HTTPException(status_code=401, detail="Authentication required")
+
     user = db.get_user_by_id(uid)
     if not user:
-        raise HTTPException(status_code=404, detail="User session not found")
+        raise HTTPException(status_code=404, detail="User account not found")
     return {"user": user}
