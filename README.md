@@ -288,7 +288,7 @@ AI-generated findings may be incomplete or incorrect and require human assessmen
 
 ## License
 
-Specify the project's license here before distributing the code publicly. If no license has been added to the repository, all rights remain reserved by default.
+No license has been added to this project yet.
 
 ---
 
