@@ -12,3 +12,4 @@ httpx
 groq
 anthropic
 openai
+python-multipart
